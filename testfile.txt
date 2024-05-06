@@ -1,0 +1,257 @@
+package com.socgeb;
+
+import com.socgeb.controller.AuthenticationController;
+import com.socgeb.dto.LoginUserDto;
+import com.socgeb.dto.RegisterUserDto;
+import com.socgeb.repository.UserRepository;
+import com.socgeb.service.AuthenticationService;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
+@SpringBootTest
+public class FirstApplicationTests {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private AuthenticationService authenticationService;
+
+    @InjectMocks
+    private AuthenticationController authenticationController;
+
+    @Test
+    public void testUserRegistration_Success() {
+        // Given
+        RegisterUserDto registerUserDto = new RegisterUserDto("John Doe", "johndoe@example.com", "password123");
+        when(authenticationService.registerUser(any(RegisterUserDto.class))).thenReturn("User registered successfully");
+
+        // When
+        ResponseEntity<String> response = authenticationController.registerUser(registerUserDto);
+
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("User registered successfully", response.getBody());
+    }
+
+    @Test
+    public void testUserRegistration_DuplicateEmail() {
+        // Given
+        RegisterUserDto registerUserDto = new RegisterUserDto("Jane Doe", "janedoe@example.com", "password123");
+        when(authenticationService.registerUser(any(RegisterUserDto.class)))
+            .thenThrow(new RuntimeException("Email already in use"));
+
+        // When
+        ResponseEntity<String> response = authenticationController.registerUser(registerUserDto);
+
+        // Then
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Email already in use", response.getBody());
+    }
+
+    @Test
+    public void testUserLogin_Success() {
+        // Given
+        LoginUserDto loginUserDto = new LoginUserDto("johndoe@example.com", "password123");
+        when(authenticationService.authenticateUser(any(LoginUserDto.class)))
+            .thenReturn("sample-jwt-token");
+
+        // When
+        ResponseEntity<String> response = authenticationController.authenticateUser(loginUserDto);
+
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("sample-jwt-token", response.getBody());
+    }
+
+    @Test
+    public void testUserLogin_InvalidCredentials() {
+        // Given
+        LoginUserDto loginUserDto = new LoginUserDto("wrongemail@example.com", "wrongpassword");
+        when(authenticationService.authenticateUser(any(LoginUserDto.class)))
+            .thenThrow(new RuntimeException("Invalid credentials"));
+
+        // When
+        ResponseEntity<String> response = authenticationController.authenticateUser(loginUserDto);
+
+        // Then
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals("Invalid credentials", response.getBody());
+    }
+
+    // More test cases can be added as needed for additional scenarios like CORS handling, JWT expiration, etc.
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.socgeb.controller;
+
+import com.socgeb.dto.LoginUserDto;
+import com.socgeb.dto.RegisterUserDto;
+import com.socgeb.service.AuthenticationService;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@SpringJUnitConfig // Needed for Spring-related tests
+public class AuthenticationControllerTest {
+
+    @Mock
+    private AuthenticationService authenticationService;
+
+    @InjectMocks
+    private AuthenticationController authenticationController;
+
+    @Test
+    public void testUserRegistration_Success() {
+        RegisterUserDto registerUserDto = new RegisterUserDto("John Doe", "johndoe@example.com", "password123");
+        when(authenticationService.registerUser(any(RegisterUserDto.class))).thenReturn("User registered successfully");
+
+        ResponseEntity<String> response = authenticationController.registerUser(registerUserDto);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("User registered successfully", response.getBody());
+    }
+
+    @Test
+    public void testUserRegistration_Failure() {
+        RegisterUserDto registerUserDto = new RegisterUserDto("John Doe", "johndoe@example.com", "password123");
+        when(authenticationService.registerUser(any(RegisterUserDto.class)))
+            .thenThrow(new RuntimeException("Email already in use"));
+
+        ResponseEntity<String> response = authenticationController.registerUser(registerUserDto);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Email already in use", response.getBody());
+    }
+
+    @Test
+    public void testUserLogin_Success() {
+        LoginUserDto loginUserDto = new LoginUserDto("johndoe@example.com", "password123");
+        when(authenticationService.authenticateUser(any(LoginUserDto.class)))
+            .thenReturn("sample-jwt-token");
+
+        ResponseEntity<String> response = authenticationController.authenticateUser(loginUserDto);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("sample-jwt-token", response.getBody());
+    }
+
+    @Test
+    public void testUserLogin_Failure() {
+        LoginUserDto loginUserDto = new LoginUserDto("johndoe@example.com", "wrongpassword");
+        when(authenticationService.authenticateUser(any(LoginUserDto.class)))
+            .thenThrow(new RuntimeException("Invalid credentials"));
+
+        ResponseEntity<String> response = authenticationController.authenticateUser(loginUserDto);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals("Invalid credentials", response.getBody());
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.socgeb.service;
+
+import com.socgeb.dto.RegisterUserDto;
+import com.socgeb.repository.UserRepository;
+import com.socgeb.entity.User;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+public class AuthenticationServiceTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
+    private AuthenticationService authenticationService;
+
+    @Test
+    public void testRegisterUser_Success() {
+        RegisterUserDto registerUserDto = new RegisterUserDto("John Doe", "johndoe@example.com", "password123");
+        when(userRepository.save(any(User.class))).thenReturn(new User());
+
+        String result = authenticationService.registerUser(registerUserDto);
+
+        assertEquals("User registered successfully", result);
+    }
+
+    @Test
+    public void testRegisterUser_DuplicateEmail() {
+        RegisterUserDto registerUserDto = new RegisterUserDto("John Doe", "johndoe@example.com", "password123");
+        when(userRepository.findByEmail(anyString())).thenReturn(new User());
+
+        assertThrows(RuntimeException.class, () -> {
+            authenticationService.registerUser(registerUserDto);
+        });
+    }
+}
